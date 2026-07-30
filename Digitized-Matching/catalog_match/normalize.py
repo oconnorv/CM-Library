@@ -19,6 +19,11 @@ _ARTICLES = re.compile(
 )
 _PUNCT = re.compile(r"[^\w\s]")
 _WS = re.compile(r"\s+")
+# Apostrophes are dropped rather than spaced, so "King's" -> "kings" instead of
+# the stray one-letter token "king s", which breaks phrase queries
+_APOSTROPHE = re.compile(r"[’']")
+# ISBD separates the main title from its subtitle with " : " (or " ; ")
+_SUBTITLE = re.compile(r"\s+[:;=]\s+|\s+/\s+")
 # Life dates appended to headings: ", 1870-1950" / ", b. 1870" / ", d. 1950" / ", 1870-"
 _AUTHOR_DATES = re.compile(r",?\s*(b\.|d\.|ca\.|fl\.|active)?\s*\d{3,4}\??\s*-?\s*(\d{3,4}\??)?\.?\s*$")
 _RELATORS = re.compile(
@@ -41,17 +46,38 @@ def normalize_title(title: str) -> str:
         return ""
     title = _BRACKETED.sub(" ", title)
     title = fold(title)
+    title = _APOSTROPHE.sub("", title)
     title = _PUNCT.sub(" ", title)
     title = _ARTICLES.sub("", title)
     return _WS.sub(" ", title).strip()
 
 
+def main_title(title: str) -> str:
+    """Normalized title up to the subtitle break.
+
+    Repositories often carry a different subtitle for the same work (our
+    "Foxfire 4 : fiddle making, springhouses..." is Internet Archive's
+    "Foxfire 4 : water systems, fiddle making..."), so the main title is the
+    part that can be relied on for a phrase search.
+    """
+    if not title:
+        return ""
+    return normalize_title(_SUBTITLE.split(title, maxsplit=1)[0])
+
+
 def normalize_author(author: str) -> str:
     if not author:
         return ""
-    author = _AUTHOR_DATES.sub("", author.strip())
-    author = _RELATORS.sub("", author)
+    author = author.strip()
+    # Trailing life dates and relator terms appear in either order
+    # ("Golden, Harry, 1902-1981, author."), so strip until nothing more comes off
+    while True:
+        stripped = _RELATORS.sub("", _AUTHOR_DATES.sub("", author))
+        if stripped == author:
+            break
+        author = stripped
     author = fold(author)
+    author = _APOSTROPHE.sub("", author)
     author = _PUNCT.sub(" ", author)
     return _WS.sub(" ", author).strip()
 

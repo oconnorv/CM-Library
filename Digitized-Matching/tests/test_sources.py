@@ -87,6 +87,46 @@ def test_internet_archive_empty_title_skips_network():
     assert session.calls == []
 
 
+def test_internet_archive_stops_at_first_query_with_hits():
+    session = FakeSession([FakeResponse(IA_PAYLOAD), FakeResponse(IA_PAYLOAD)])
+    InternetArchiveSource(session, {}).search(record())
+    assert len(session.calls) == 1
+
+
+def test_internet_archive_widens_query_when_no_hits():
+    """Regression: a long subtitle the repository spells differently used to
+    return nothing, because only the full-title phrase query was ever tried."""
+    empty = {"response": {"docs": []}}
+    session = FakeSession([FakeResponse(empty), FakeResponse(IA_PAYLOAD)])
+    rec = record(title="Foxfire 4 : fiddle making, springhouses, horse trading, sassafras tea", author="")
+    candidates = InternetArchiveSource(session, {}).search(rec)
+    assert len(candidates) == 2
+    queries = [call[2]["params"]["q"] for call in session.calls]
+    assert 'title:"foxfire 4 fiddle making springhouses horse trading sassafras tea"' in queries[0]
+    # Falls back to the main title, which is what actually matches
+    assert queries[-1] == 'mediatype:texts AND title:"foxfire 4"'
+
+
+def test_internet_archive_query_order_drops_creator_before_widening_title():
+    empty = {"response": {"docs": []}}
+    session = FakeSession([FakeResponse(empty)] * 4)
+    InternetArchiveSource(session, {}).search(record(title="Old Hickory : a life of Andrew Jackson"))
+    queries = [call[2]["params"]["q"] for call in session.calls]
+    assert len(queries) == 4
+    assert "creator:" in queries[0] and "old hickory a life of andrew jackson" in queries[0]
+    assert "creator:" not in queries[1]
+    assert "creator:" in queries[2] and 'title:"old hickory"' in queries[2]
+    assert queries[3] == 'mediatype:texts AND title:"old hickory"'
+
+
+def test_internet_archive_no_duplicate_queries_without_subtitle():
+    empty = {"response": {"docs": []}}
+    session = FakeSession([FakeResponse(empty)] * 4)
+    InternetArchiveSource(session, {}).search(record(title="American gold", author=""))
+    # main title == full title and no author, so there is only one distinct query
+    assert len(session.calls) == 1
+
+
 # --- WorldCat ---
 
 WC_TOKEN = {"access_token": "tok-123", "expires_in": 1199}

@@ -50,3 +50,36 @@ def test_book_same_title_different_year_not_perfect():
     book = rec(material_type="Book", title="Charlotte medical journal", author="", year="1895")
     c = cand(title="Charlotte medical journal", author="", year="1914")
     assert score_candidate(book, c) < 100.0
+
+
+def test_main_title_rescue_with_corroborating_year():
+    # Same work, repository carries a different subtitle (the Foxfire 4 case)
+    local = rec(title="Foxfire 4 : fiddle making, springhouses, horse trading, sassafras tea", author="", year="1977")
+    c = cand(title="Foxfire 4 : water systems, fiddle making, logging, gardening", author="", year="1977")
+    assert score_candidate(local, c) >= 85
+
+
+def test_main_title_rescue_with_corroborating_author():
+    local = rec(title="After San Jacinto : the Texas-Mexican frontier, 1836-1841", author="Nance, Joseph Milton.", year="")
+    c = cand(title="after san jacinto", author="Nance, Joseph Milton", year="")
+    assert score_candidate(local, c) >= 85
+
+
+def test_main_title_rescue_needs_corroboration():
+    # Nothing but a generic main title in common: no author, no year on either side
+    local = rec(title="Annual report : Charlotte water department", author="", year="")
+    c = cand(title="Annual report : Piedmont railway company", author="", year="")
+    assert score_candidate(local, c) < 85
+
+
+def test_main_title_rescue_skipped_for_one_word_titles():
+    local = rec(title="Greensboro : a pictorial history", author="", year="1977")
+    c = cand(title="Greensboro : the city of bridges", author="", year="1977")
+    assert score_candidate(local, c) < 85
+
+
+def test_rescued_score_sorts_below_exact_match():
+    local = rec(title="Foxfire 4 : fiddle making, springhouses", author="", year="1977")
+    exact = cand(title="Foxfire 4 : fiddle making, springhouses", author="", year="1977")
+    rescued = cand(title="Foxfire 4 : water systems, logging", author="", year="1977")
+    assert score_candidate(local, exact) > score_candidate(local, rescued)

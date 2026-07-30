@@ -26,14 +26,19 @@ For each record: **load → normalize → query sources → score → emit CSV r
      is no title-search API. Uses the trusted OCLC number from WorldCat, plus
      any OCLC/ISBN/ISSN/LCCN already on the record as untrusted hints.
    - **Internet Archive** (advanced search API, no key): `mediatype:texts`
-     title/creator search.
+     title/creator search. Queries run narrowest-first (full title + author)
+     and widen — dropping the author, then shortening to the main title before
+     the subtitle — only when a query returns nothing.
    - **DigitalNC** (TIND search at lib.digitalnc.org, no key): title/author
      search. See "Verifying DigitalNC" below.
 3. **Score.** 0–100 weighted similarity: title 60% (token-sort ratio), author
    25% (token-set ratio, so "Last, First" ≡ "First Last"), year 15% (penalized
    by distance). Components missing on either side are dropped and the weights
    renormalized — records without authors aren't penalized. For **serials** the
-   year component is always skipped (a run spans years).
+   year component is always skipped (a run spans years). When full titles
+   disagree only because the repository carries a different subtitle, an
+   exactly-equal main title scores 90 — provided an author or year corroborates
+   — so those rows surface but sort below exact matches.
 4. **Emit.** Candidates scoring ≥ the emit threshold (default 85, at most 3 per
    source per record) become rows in the review CSV, sorted best-first, with the
    URL, score, rights info, and a blank `review_status` column for staff.

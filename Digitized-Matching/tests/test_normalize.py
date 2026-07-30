@@ -1,4 +1,4 @@
-from catalog_match.normalize import extract_year, fold, normalize_author, normalize_title
+from catalog_match.normalize import extract_year, fold, main_title, normalize_author, normalize_title
 
 
 def test_title_strips_gmd_and_punctuation():
@@ -11,7 +11,8 @@ def test_title_strips_leading_article():
 
 
 def test_title_folds_diacritics():
-    assert normalize_title("Précis d'histoire") == normalize_title("Precis d histoire")
+    assert normalize_title("Précis historique") == normalize_title("Precis historique")
+    assert normalize_title("Café société") == "cafe societe"
 
 
 def test_title_empty():
@@ -26,6 +27,29 @@ def test_author_strips_life_dates():
 
 def test_author_strips_relator():
     assert normalize_author("Jones, Mary, editor.") == "jones mary"
+
+
+def test_author_strips_dates_and_relator_together():
+    # Regression: dates were left behind when a relator term followed them
+    assert normalize_author("Golden, Harry, 1902-1981, author.") == "golden harry"
+    assert normalize_author("Miller, Heather Ross, 1939-2025, editor") == "miller heather ross"
+
+
+def test_apostrophes_do_not_leave_stray_tokens():
+    assert normalize_title("King's Mountain") == "kings mountain"
+    assert normalize_author("O'Connor, Flannery") == "oconnor flannery"
+
+
+def test_main_title_splits_on_subtitle():
+    assert main_title("Foxfire 4 : fiddle making, springhouses, horse trading") == "foxfire 4"
+    assert main_title("King's Mountain : the epic of the Blue Ridge") == "kings mountain"
+    assert main_title("Husbandmen of Plymouth ; farms and villages") == "husbandmen of plymouth"
+
+
+def test_main_title_without_subtitle_is_whole_title():
+    assert main_title("American gold") == "american gold"
+    # A colon with no surrounding spaces is not an ISBD subtitle break
+    assert main_title("Report 1972:1974") == "report 1972 1974"
 
 
 def test_author_plain():
