@@ -17,8 +17,10 @@ match:
   max_candidates_per_source: 3
 
 # Minimum seconds between requests to each source. Be a polite API citizen.
+# DigitalNC gets a longer interval: the widening query cascade can issue up to
+# four requests per record, and their TIND instance rate-limits with 429s.
 rate_limits:
   worldcat: 0.5
   hathitrust: 1.0
   internet_archive: 1.0
-  digitalnc: 1.0
+  digitalnc: 2.0

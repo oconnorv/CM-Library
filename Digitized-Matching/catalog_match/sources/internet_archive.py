@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from ..normalize import main_title, normalize_author, normalize_title
+from ..normalize import main_title, normalize_author, normalize_title, trim_dangling
 from ..records import LocalRecord
 from . import Candidate, Source
 
@@ -26,8 +26,8 @@ class InternetArchiveSource(Source):
 
     def _queries(self, record: LocalRecord) -> list[str]:
         """Query attempts, most precise first; the first with any hit wins."""
-        full = _clip(normalize_title(record.title))
-        main = main_title(record.title)
+        full = trim_dangling(_clip(normalize_title(record.title)))
+        main = trim_dangling(main_title(record.title))
         author = normalize_author(record.author)
 
         attempts = []

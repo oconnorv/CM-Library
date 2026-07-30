@@ -130,9 +130,13 @@ not be exercised live. On first pilot run, confirm:
 1. `--sources ia --limit 5` emits plausible archive.org URLs for well-known titles.
 2. With your WSKey in `config.yaml`: `--sources wc,ht --limit 5` emits WorldCat
    matches and (for verified matches held by HathiTrust) HathiTrust rows.
-3. **Verifying DigitalNC**: `--sources digitalnc --limit 5 -v`. If every record
-   logs a "returned non-JSON" warning, TIND's JSON output format differs from
-   the expected `of=recjson`; try `curl 'https://lib.digitalnc.org/search?p=charlotte&of=recjson&rg=3'`
+3. **Verifying DigitalNC**: `--sources digitalnc --limit 5 -v`. Verified live
+   2026-07-30: recjson works, zero-hit searches return an empty body, and TIND
+   soft-blocks (HTTP 202, empty body) User-Agents it doesn't recognize — the
+   connector raises a clear error if that happens rather than reporting silent
+   zeroes, and our User-Agent includes a `python-requests` token TIND accepts.
+   If behavior shifts again, probe with
+   `curl 'https://lib.digitalnc.org/search?p=charlotte&of=recjson&rg=3'`
    and adjust `catalog_match/sources/digitalnc.py` (or ask NCDHC — as a DPLA
    hub they also expose OAI-PMH for bulk harvest, a good plan B).
 

@@ -1,4 +1,11 @@
-from catalog_match.normalize import extract_year, fold, main_title, normalize_author, normalize_title
+from catalog_match.normalize import (
+    extract_year,
+    fold,
+    main_title,
+    normalize_author,
+    normalize_title,
+    trim_dangling,
+)
 
 
 def test_title_strips_gmd_and_punctuation():
@@ -66,3 +73,16 @@ def test_extract_year():
 
 def test_fold():
     assert fold("Müller") == "muller"
+
+
+def test_trim_dangling_function_words():
+    # "Walsh's directory of the city of Charlotte for ..." normalizes to a
+    # phrase ending in "for", which matches nothing as an exact phrase
+    assert trim_dangling("walshs directory of the city of charlotte for") == "walshs directory of the city of charlotte"
+    assert trim_dangling("history of the town and") == "history of the town"
+    assert trim_dangling("annual report of the") == "annual report"
+
+
+def test_trim_dangling_keeps_content_words():
+    assert trim_dangling("great houses of new orleans") == "great houses of new orleans"
+    assert trim_dangling("") == ""

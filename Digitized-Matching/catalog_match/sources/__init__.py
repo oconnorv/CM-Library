@@ -7,7 +7,11 @@ from dataclasses import dataclass
 
 import requests
 
-USER_AGENT = "cm-library-catalog-match/1.0 (Charlotte Mecklenburg Library metadata reconciliation)"
+# Convention: underlying client first, then our product token. The leading
+# python-requests token matters — at least one target (lib.digitalnc.org)
+# soft-blocks (HTTP 202, empty body) UAs it doesn't recognize, and it accepts
+# UAs that include a known client token.
+USER_AGENT = f"python-requests/{requests.__version__} cm-library-catalog-match/1.0"
 
 
 @dataclass
@@ -107,10 +111,14 @@ def build_sources(names: list[str], config: dict) -> dict[str, Source]:
 
     # Registry order is execution order: worldcat must run before hathitrust so
     # a verified OCLC number is available for the HathiTrust lookup.
+    # DigitalNC's default interval is longer: the widening query cascade can
+    # issue several requests per record and their TIND instance 429s at 1/s.
+    default_intervals = {"digitalnc": 2.0}
     sources: dict[str, Source] = {}
     rate_limits = config.get("rate_limits", {})
     for name, cls in registry.items():
         if name in requested:
-            session = RateLimitedSession(min_interval=float(rate_limits.get(name, 1.0)))
+            interval = float(rate_limits.get(name, default_intervals.get(name, 1.0)))
+            session = RateLimitedSession(min_interval=interval)
             sources[name] = cls(session, config)
     return sources

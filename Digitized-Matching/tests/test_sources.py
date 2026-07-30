@@ -17,6 +17,12 @@ class FakeResponse:
         self._payload = payload
         self.status_code = status_code
 
+    @property
+    def text(self):
+        if isinstance(self._payload, (dict, list)):
+            return json.dumps(self._payload)
+        return str(self._payload)
+
     def json(self):
         if isinstance(self._payload, (dict, list)):
             return self._payload
@@ -238,14 +244,86 @@ def test_digitalnc_parses_recjson_shapes():
     assert candidates[1].title == "Plain string title"
 
 
+def test_digitalnc_parses_live_observed_shape():
+    """Shapes observed from the real lib.digitalnc.org recjson endpoint:
+    title with embedded newline/indentation, imprint as a list with the date
+    in the second element."""
+    payload = [{
+        "recid": 25479,
+        "title": {"title": "Directory of the City of Charlotte, N.C.\n                                [1896-1897]"},
+        "authors": [{"full_name": "Charlotte Directory Company.", "first_name": "", "last_name": ","}],
+        "imprint": [{"publisher_name": "Charlotte Directory Company."}, {"date": "1896-1897"}],
+    }]
+    session = FakeSession([FakeResponse(payload)])
+    candidates = DigitalNCSource(session, {}).search(record())
+    assert len(candidates) == 1
+    c = candidates[0]
+    assert c.title == "Directory of the City of Charlotte, N.C. [1896-1897]"
+    assert c.author == "Charlotte Directory Company."
+    assert c.year == "1896"
+    assert c.url == "https://lib.digitalnc.org/record/25479"
+
+
 def test_digitalnc_html_response_raises_helpful_error():
     class HtmlResponse(FakeResponse):
+        text = "<html>an error page</html>"
+
         def json(self):
             raise ValueError("not json")
 
     session = FakeSession([HtmlResponse("<html>", 200)])
     with pytest.raises(RuntimeError, match="non-JSON"):
         DigitalNCSource(session, {}).search(record())
+
+
+def test_digitalnc_widens_query_and_trims_dangling_words():
+    """The Walsh's directory case: serial title ends 'for ...', whose trailing
+    'for' makes the exact phrase match nothing on TIND."""
+    source = DigitalNCSource(FakeSession([]), {})
+    rec = record(title="Walsh's directory of the city of Charlotte for ...", author="")
+    queries = source._queries(rec)
+    assert queries == ['title:"walshs directory of the city of charlotte"']
+
+
+def test_digitalnc_cascade_stops_at_first_hit():
+    empty = FakeResponse("")
+    empty._payload = ""
+    session = FakeSession([empty, FakeResponse(DNC_PAYLOAD)])
+    rec = record(title="The gospel according to Billy : a biography")
+    candidates = DigitalNCSource(session, {}).search(rec)
+    assert len(candidates) == 2
+    assert len(session.calls) == 2
+
+
+def test_digitalnc_soft_block_raises_instead_of_zero_hits():
+    """Observed live: TIND answers 202 + empty body to unrecognized
+    User-Agents. That must surface as an error, not as silent no-matches."""
+    class SoftBlock(FakeResponse):
+        text = ""
+
+        def json(self):
+            raise ValueError("empty")
+
+    session = FakeSession([SoftBlock("", 202)])
+    with pytest.raises(RuntimeError, match="HTTP 202"):
+        DigitalNCSource(session, {}).search(record())
+
+
+def test_digitalnc_empty_body_means_zero_results():
+    """Observed live: zero-hit searches return HTTP 200 with an empty body,
+    not an empty JSON array. Every widened query gets its turn, then the
+    search concludes with no candidates instead of raising."""
+    class EmptyResponse(FakeResponse):
+        text = ""
+
+        def json(self):
+            raise ValueError("empty")
+
+    source = DigitalNCSource(FakeSession([]), {})
+    attempts = len(source._queries(record()))
+    session = FakeSession([EmptyResponse("", 200) for _ in range(attempts)])
+    assert DigitalNCSource(session, {}).search(record()) == []
+    assert len(session.calls) == attempts
 
 
 # --- registry ---

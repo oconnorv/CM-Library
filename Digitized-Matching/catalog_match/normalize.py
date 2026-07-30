@@ -82,6 +82,17 @@ def normalize_author(author: str) -> str:
     return _WS.sub(" ", author).strip()
 
 
+# Function words left dangling at the end of a query phrase by truncation
+# ("Walsh's directory of the city of Charlotte for ..." -> trailing "for"),
+# which make exact-phrase searches match nothing
+_DANGLING = re.compile(r"(\s+(?:for|of|and|or|the|an?|in|on|to|by|with|at|from))+$")
+
+
+def trim_dangling(text: str) -> str:
+    """Drop trailing function words from an already-normalized query phrase."""
+    return _DANGLING.sub("", text)
+
+
 def extract_year(text: str) -> str:
     """Pull the first plausible publication year (1400-2099) out of free text."""
     if not text:
