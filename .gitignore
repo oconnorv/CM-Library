@@ -1,0 +1,12 @@
+# Local credentials — never commit your WorldCat WSKey
+config.yaml
+
+# Run artifacts
+output/
+*.checkpoint.db
+matches*.csv
+
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/

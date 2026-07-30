@@ -1,0 +1,24 @@
+# Copy this file to config.yaml and fill in your credentials.
+# config.yaml is git-ignored so keys never end up in the repository.
+
+worldcat:
+  # WSKey credentials for the WorldCat Search API v2 (OAuth2 client credentials).
+  # Request/manage keys at https://platform.worldcat.org/wskey/
+  key: "YOUR_WSKEY"
+  secret: "YOUR_WSKEY_SECRET"
+
+match:
+  # Candidates scoring at or above emit_threshold (0-100) are written to the CSV.
+  emit_threshold: 85
+  # A WorldCat match at or above verified_threshold is treated as establishing a
+  # *trusted* OCLC number, which is then looked up in HathiTrust.
+  verified_threshold: 95
+  # At most this many candidates per source are written for each local record.
+  max_candidates_per_source: 3
+
+# Minimum seconds between requests to each source. Be a polite API citizen.
+rate_limits:
+  worldcat: 0.5
+  hathitrust: 1.0
+  internet_archive: 1.0
+  digitalnc: 1.0
